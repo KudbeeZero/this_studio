@@ -39,7 +39,8 @@ class Settings(BaseSettings):
     port: int = 8000
     
     # Security - JWT
-    secret_key: str = "CHANGE_ME_IN_PRODUCTION_USE_STRONG_SECRET_KEY"
+    # NOTE: secret_key must be set via environment variable for production
+    secret_key: str = ""  # Must be set in production
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
     refresh_token_expire_minutes: int = 10080  # 7 days
@@ -50,7 +51,8 @@ class Settings(BaseSettings):
     
     # Real Data Service Configuration (when data_service="real")
     real_api_base_url: str = "http://localhost:9000"
-    real_api_key: str = "CHANGE_ME"
+    # NOTE: real_api_key must be set via environment variable for production
+    real_api_key: str = ""  # Must be set in production
     
     # CORS
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000", "http://localhost:8000"])
@@ -58,6 +60,22 @@ class Settings(BaseSettings):
     # Rate Limiting
     rate_limit_requests: int = 100
     rate_limit_window_seconds: int = 60
+
+
+    def model_post_init(self, __context):
+        """Validate settings after initialization."""
+        import secrets
+        
+        # Validate secret_key is set for production
+        if self.environment == "prod" and not self.secret_key:
+            raise ValueError("secret_key must be set in production environment (set SECRET_KEY env var)")
+        if not self.secret_key:
+            self.secret_key = secrets.token_urlsafe(32)
+            print("WARNING: Using generated secret_key. Set SECRET_KEY env var for production!")
+        
+        # Validate real_api_key is set when using real data service
+        if self.data_service == "real" and not self.real_api_key:
+            raise ValueError("real_api_key must be set when data_service='real' (set REAL_API_KEY env var)")
 
 
 @lru_cache
